@@ -109,20 +109,12 @@ namespace CryptoCartera.Controllers
             // Validar saldo si es venta
             if (dto.Action.ToLower() == "sale")
             {
-                var historial = await _context.Transacciones
-                    .Where(t => t.ClienteId == dto.ClienteId && t.CryptoCode == dto.CryptoCode)
-                    .ToListAsync();
+                var saldo = await _context.Transacciones
+           .Where(t => t.ClienteId == dto.ClienteId && t.CryptoCode == dto.CryptoCode)
+           .SumAsync(t => t.Action == "purchase" ? t.CryptoAmount : -t.CryptoAmount);
 
-                var totalCompra = historial
-                    .Where(t => t.Action == "purchase")
-                    .Sum(t => t.CryptoAmount);
-
-                var totalVenta = historial
-                    .Where(t => t.Action == "sale")
-                    .Sum(t => t.CryptoAmount);
-
-                if (dto.CryptoAmount > (totalCompra - totalVenta))
-                    return BadRequest("Saldo insuficiente para realizar la venta.");
+                if (saldo < dto.CryptoAmount)
+                    return BadRequest("No se puede vender más criptomonedas de las que se poseen.");
             }
 
             var transaccion = new Transaccion

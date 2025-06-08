@@ -47,6 +47,15 @@ namespace CryptoCartera.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if(string.IsNullOrWhiteSpace(dto.Name))
+                return BadRequest("El nombre es obligatorio");
+
+            if (string.IsNullOrWhiteSpace(dto.Email) || !dto.Email.Contains("@"))
+                return BadRequest("Debe ingresar un email válido");
+
+            if (await _context.Clientes.AnyAsync(c => c.Email == dto.Email))
+                return BadRequest("Ya existe un cliente con ese email");
+
             var cliente = new Cliente
             {
                 Name= dto.Name,
