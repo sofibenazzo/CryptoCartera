@@ -91,30 +91,42 @@ namespace CryptoCartera.Controllers
                 response = await _httpClient.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
-                    return BadRequest("No se pudo obtener el precio de la criptomoneda.");
+                    return BadRequest("No se pudo obtener el precio de la criptomoneda");
             }
             catch (Exception)
             {
-                return StatusCode(500, "Error al consultar el precio de la criptomoneda.");
+                return StatusCode(500, "Error al consultar el precio de la criptomoneda");
             }
 
             using var stream = await response.Content.ReadAsStreamAsync();
             using var json = await JsonDocument.ParseAsync(stream);
 
-            if (!json.RootElement.TryGetProperty("totalAsk", out var precioElement))
-                return BadRequest("Respuesta inválida de la API. No contiene el precio.");
+            decimal precio;
 
-            decimal precio = precioElement.GetDecimal();
+            if (dto.Action.ToLower() == "purchase")
+            {
+                if (!json.RootElement.TryGetProperty("totalAsk", out var precioElement))
+                    return BadRequest("No contiene el precio de compra");
+
+                precio = precioElement.GetDecimal(); // Precio de compra
+            }
+            else // sale
+            {
+                if (!json.RootElement.TryGetProperty("totalBid", out var precioElement))
+                    return BadRequest("No contiene el precio de venta");
+
+                precio = precioElement.GetDecimal(); // Precio de venta
+            }
 
             // Validar saldo si es venta
             if (dto.Action.ToLower() == "sale")
             {
                 var saldo = await _context.Transacciones
-           .Where(t => t.ClienteId == dto.ClienteId && t.CryptoCode == dto.CryptoCode)
-           .SumAsync(t => t.Action == "purchase" ? t.CryptoAmount : -t.CryptoAmount);
+                    .Where(t => t.ClienteId == dto.ClienteId && t.CryptoCode == dto.CryptoCode)
+                    .SumAsync(t => t.Action == "purchase" ? t.CryptoAmount : -t.CryptoAmount);
 
                 if (saldo < dto.CryptoAmount)
-                    return BadRequest("No se puede vender más criptomonedas de las que se poseen.");
+                    return BadRequest("No se puede vender más criptomonedas de las que se poseen");
             }
 
             var transaccion = new Transaccion
