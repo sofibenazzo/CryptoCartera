@@ -17,6 +17,7 @@ namespace CryptoCartera.Controllers
             _context = context;
         }
 
+        // GET: api/Cliente
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ClienteDTO>>> Get()
         {
@@ -31,6 +32,7 @@ namespace CryptoCartera.Controllers
             return Ok(clienteDTO);
         }
 
+        //GET: api/cliente/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> Get(int id)
         {
@@ -61,18 +63,13 @@ namespace CryptoCartera.Controllers
             });
         }
 
+        //POST: api/cliente
         [HttpPost]
         public async Task<ActionResult<ClienteDTO>> Post([FromBody] CrearClienteDTO dto)
         {
             // Validaciones básicas
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-
-            if (string.IsNullOrWhiteSpace(dto.Name))
-                return BadRequest("El nombre es obligatorio"); // nombre obligatorio
-
-            if (string.IsNullOrWhiteSpace(dto.Email) || !dto.Email.Contains("@"))
-                return BadRequest("Debe ingresar un email válido"); // email debe ser válido
 
             // Verifico que no exista otro cliente con el mismo email
             if (await _context.Clientes.AnyAsync(c => c.Email == dto.Email))
@@ -96,47 +93,49 @@ namespace CryptoCartera.Controllers
             });
         }
 
+        //PATCH: api/cliente/{id}
         [HttpPatch("{id}")]
         public async Task<IActionResult> Patch(int id, [FromBody] ActualizarClienteDTO dto)
         {
             var cliente = await _context.Clientes.FindAsync(id);
+
             if (cliente == null)
-                return NotFound($"Cliente con ID {id} no encontrado.");
+                return NotFound($"Cliente con ID {id} no encontrado");
 
-            if (string.IsNullOrWhiteSpace(dto.Name) && string.IsNullOrWhiteSpace(dto.Email))
-                return BadRequest("Debe proporcionar al menos un campo para actualizar.");
+            // Si no mandó nada
+            if (dto.Name == null && dto.Email == null)
+                return BadRequest("Debe proporcionar al menos un campo para actualizar");
 
-            // Verifico que no haya duplicado de email en otro cliente
-            if (!string.IsNullOrEmpty(dto.Email) &&
+            // Validación de email duplicado
+            if (dto.Email != null &&
                 await _context.Clientes.AnyAsync(c => c.Email == dto.Email && c.Id != id))
-                return BadRequest("Ya existe un cliente con ese correo.");
+                return BadRequest("Ya existe un cliente con ese email.");
 
-            // Actualizo campos si vienen en el DTO
-            if (!string.IsNullOrEmpty(dto.Name))
+            // Actualizaciones 
+            if (dto.Name != null)
                 cliente.Name = dto.Name;
 
-            if (!string.IsNullOrEmpty(dto.Email))
+            if (dto.Email != null)
                 cliente.Email = dto.Email;
 
             await _context.SaveChangesAsync();
 
-            // Devuelvo el cliente actualizado
-            var result = new ClienteDTO
+            return Ok(new ClienteDTO
             {
                 Id = cliente.Id,
                 Name = cliente.Name,
                 Email = cliente.Email
-            };
-
-            return Ok(result);
+            });
         }
 
+        //DELETE: api/cliente/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
             var cliente = await _context.Clientes.FindAsync(id);
+
             if (cliente == null)
-                return NotFound();
+                return NotFound($"Cliente con ID {id} no encontrado");
 
             // No se puede borrar si tiene transacciones
             if (await _context.Transacciones.AnyAsync(t => t.ClienteId == id))
